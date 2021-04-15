@@ -22,12 +22,12 @@ blueprint:
       default: '00:00'
       selector:
         time:
-     workdays_only:
-        name: Run only on working days
-        description: If toogled on automation will only run on working days
-        default: false
-        selector:
-          boolean:
+    workdays_only:
+      name: Run only on working days
+      description: If toogled on automation will only run on working days
+      default: false
+      selector:
+        boolean:
     custom_trigger_event:
       name: Custom Trigger Event
       description: (Optional) A custom event which can trigger the state check (eg. a powercut event reported by external integrations).
