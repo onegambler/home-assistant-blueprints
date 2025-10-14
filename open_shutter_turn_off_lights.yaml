@@ -1,0 +1,56 @@
+blueprint:
+  name: Open shutter and turn off lights when bright enough
+  description: >
+    When selected lights are turned on and the light sensor reports enough brightness,
+    open the shutter and turn off those lights.
+  domain: automation
+  input:
+    trigger_lights:
+      name: Trigger Lights
+      description: Lights that will trigger the automation when turned on.
+      selector:
+        target:
+          entity:
+            domain: light
+    light_sensor:
+      name: Light Sensor
+      description: The sensor measuring brightness (e.g., illuminance).
+      selector:
+        entity:
+          domain: sensor
+          device_class: illuminance
+    brightness_threshold:
+      name: Brightness Threshold
+      description: Brightness level (in lux) above which the shutter will open.
+      default: 300
+      selector:
+        number:
+          min: 0
+          max: 2000
+          unit_of_measurement: lux
+          mode: slider
+    shutter:
+      name: Shutter
+      description: The cover entity (blind/shutter) to open.
+      selector:
+        target:
+          entity:
+            domain: cover
+
+trigger:
+  - platform: state
+    target: !input trigger_lights
+    to: "on"
+
+condition:
+  - condition: numeric_state
+    entity_id: !input light_sensor
+    above: !input brightness_threshold
+
+action:
+  - service: cover.open_cover
+    target: !input shutter
+  - service: light.turn_off
+    target: !input trigger_lights
+
+mode: single
