@@ -1,7 +1,8 @@
 blueprint:
-  name: Open shutters if daylight (generic)
+  name: Open shutters if daylight (supports binary or numeric sensors)
   description: >
     Opens shutters when selected lights are on for a set duration or when the light sensor detects daylight.
+    Supports both binary daylight sensors and numeric illuminance sensors with threshold configuration.
     Runs only if custom conditions are met (e.g., holiday/night mode off). After opening, turns off lights.
   domain: automation
 
@@ -21,6 +22,29 @@ blueprint:
           domain:
             - binary_sensor
             - sensor
+
+    sensor_type:
+      name: Sensor Type
+      description: Choose whether the selected light sensor is binary or numeric.
+      default: binary
+      selector:
+        select:
+          options:
+            - binary
+            - numeric
+
+    brightness_threshold:
+      name: Brightness Threshold (for numeric sensors)
+      description: >
+        For numeric illuminance sensors, the lux value above which the shutter opens.
+        Ignored if sensor type is binary.
+      default: 300
+      selector:
+        number:
+          min: 0
+          max: 5000
+          unit_of_measurement: lux
+          mode: slider
 
     shutter:
       name: Shutter
@@ -58,12 +82,22 @@ triggers:
     to: "on"
     for: !input light_on_duration
 
-  - alias: Daylight detected
+  # Binary sensor daylight trigger
+  - alias: Daylight detected (binary sensor)
     platform: state
     entity_id: !input light_sensor
     from: "off"
     to: "on"
     for: !input daylight_duration
+    enabled: "{{ is_state_attr('blueprint.input.sensor_type', 'value', 'binary') }}"
+
+  # Numeric sensor brightness threshold trigger
+  - alias: Brightness above threshold (numeric sensor)
+    platform: numeric_state
+    entity_id: !input light_sensor
+    above: !input brightness_threshold
+    for: !input daylight_duration
+    enabled: "{{ is_state_attr('blueprint.input.sensor_type', 'value', 'numeric') }}"
 
 conditions:
   - condition: and
