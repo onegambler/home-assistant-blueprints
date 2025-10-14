@@ -10,16 +10,15 @@ blueprint:
       name: Lights
       description: Lights that trigger the automation.
       selector:
-        target:
-          entity:
-            domain: light
+        entity:
+          domain: light
 
     light_sensor:
       name: Light Sensor
       description: Binary or numeric sensor indicating daylight or brightness.
       selector:
         entity:
-          domain: 
+          domain:
             - binary_sensor
             - sensor
 
@@ -27,9 +26,8 @@ blueprint:
       name: Shutter
       description: Cover entity to open.
       selector:
-        target:
-          entity:
-            domain: cover
+        entity:
+          domain: cover
 
     light_on_duration:
       name: Light On Duration
@@ -55,12 +53,13 @@ blueprint:
 
 triggers:
   - alias: Light on
-    trigger: state
-    target: !input lights
+    platform: state
+    entity_id: !input lights
     to: "on"
     for: !input light_on_duration
+
   - alias: Daylight detected
-    trigger: state
+    platform: state
     entity_id: !input light_sensor
     from: "off"
     to: "on"
@@ -72,11 +71,13 @@ conditions:
 
 actions:
   - alias: Open shutter
-    action: cover.open_cover
-    target: !input shutter
+    service: cover.open_cover
+    target:
+      entity_id: !input shutter
   - delay: "00:00:10"
   - alias: Turn off lights
-    action: light.turn_off
-    target: !input lights
+    service: light.turn_off
+    target:
+      entity_id: !input lights
 
 mode: single
