@@ -1,56 +1,82 @@
 blueprint:
-  name: Open shutter and turn off lights when bright enough
+  name: Open shutters if daylight (generic)
   description: >
-    When selected lights are turned on and the light sensor reports enough brightness,
-    open the shutter and turn off those lights.
+    Opens shutters when selected lights are on for a set duration or when the light sensor detects daylight.
+    Runs only if custom conditions are met (e.g., holiday/night mode off). After opening, turns off lights.
   domain: automation
+
   input:
-    trigger_lights:
-      name: Trigger Lights
-      description: Lights that will trigger the automation when turned on.
+    lights:
+      name: Lights
+      description: Lights that trigger the automation.
       selector:
         target:
           entity:
             domain: light
+
     light_sensor:
       name: Light Sensor
-      description: The sensor measuring brightness (e.g., illuminance).
+      description: Binary or numeric sensor indicating daylight or brightness.
       selector:
         entity:
-          domain: sensor
-          device_class: illuminance
-    brightness_threshold:
-      name: Brightness Threshold
-      description: Brightness level (in lux) above which the shutter will open.
-      default: 300
-      selector:
-        number:
-          min: 0
-          max: 2000
-          unit_of_measurement: lux
-          mode: slider
+          domain: 
+            - binary_sensor
+            - sensor
+
     shutter:
       name: Shutter
-      description: The cover entity (blind/shutter) to open.
+      description: Cover entity to open.
       selector:
         target:
           entity:
             domain: cover
 
-trigger:
-  - platform: state
-    target: !input trigger_lights
+    light_on_duration:
+      name: Light On Duration
+      description: How long the lights must stay on before triggering.
+      default: "00:00:30"
+      selector:
+        text:
+
+    daylight_duration:
+      name: Daylight Duration
+      description: How long daylight must be detected before triggering.
+      default: "00:01:00"
+      selector:
+        text:
+
+    extra_conditions:
+      name: Extra Conditions (optional)
+      description: >
+        Add one or more extra conditions that must be true for the automation to run (e.g., holiday mode off).
+      default: []
+      selector:
+        condition: {}
+
+triggers:
+  - alias: Light on
+    trigger: state
+    target: !input lights
     to: "on"
-
-condition:
-  - condition: numeric_state
+    for: !input light_on_duration
+  - alias: Daylight detected
+    trigger: state
     entity_id: !input light_sensor
-    above: !input brightness_threshold
+    from: "off"
+    to: "on"
+    for: !input daylight_duration
 
-action:
-  - service: cover.open_cover
+conditions:
+  - condition: and
+    conditions: !input extra_conditions
+
+actions:
+  - alias: Open shutter
+    action: cover.open_cover
     target: !input shutter
-  - service: light.turn_off
-    target: !input trigger_lights
+  - delay: "00:00:10"
+  - alias: Turn off lights
+    action: light.turn_off
+    target: !input lights
 
 mode: single
