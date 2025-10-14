@@ -72,12 +72,12 @@ conditions:
 actions:
   - alias: Open shutter
     service: cover.open_cover
-    target:
-      entity_id: !input shutter
+    entity_id: !input shutter
+
   - delay: "00:00:10"
+
   - alias: Turn off lights
     service: light.turn_off
-    target:
-      entity_id: !input lights
+    entity_id: !input lights
 
 mode: single
