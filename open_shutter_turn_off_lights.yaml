@@ -73,10 +73,10 @@ condition:
 action:
   - alias: "Open shutters"
     action: cover.open_cover
-    target: !input shutters
+    entity_id: !input shutters
   - delay: "00:00:10"
   - alias: "Turn off triggering lights"
     action: light.turn_off
-    target: !input lights
+    entity_id: !input lights
 
 mode: single
