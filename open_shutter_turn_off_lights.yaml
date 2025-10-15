@@ -63,7 +63,7 @@ condition:
   - condition: or
     conditions:
       - condition: state
-        target: !input lights
+        entity_id: !input lights
         state: "on"
     alias: "At least one light on"
   - condition: and
