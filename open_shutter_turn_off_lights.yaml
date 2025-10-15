@@ -39,7 +39,7 @@ blueprint:
 
 trigger:
   - platform: state
-    target: !input lights
+    entity_id: !input lights
     to: "on"
     for: "00:00:30"
     alias: "Light(s) on for 30 seconds"
@@ -73,10 +73,10 @@ condition:
 action:
   - alias: "Open shutters"
     action: cover.open_cover
-    entity_id: !input shutters
+    target: !input shutters
   - delay: "00:00:10"
   - alias: "Turn off triggering lights"
     action: light.turn_off
-    entity_id: !input lights
+    target: !input lights
 
 mode: single
