@@ -2,8 +2,7 @@ blueprint:
   name: Open shutters if daylight
   description: >
     Automatically opens shutters when daylight is detected or when lights have
-    been on for more than 30 seconds, provided holiday and night modes are off.
-    Supports extra user-defined conditions.
+    been on for more than 30 seconds. Supports extra user-defined conditions.
   domain: automation
   input:
     lights:
@@ -42,13 +41,6 @@ variables:
 
 trigger:
   - platform: state
-    entity_id: !input lights
-    to: "on"
-    for:
-      seconds: 30
-    alias: Light(s) on for 30 seconds
-
-  - platform: state
     entity_id: !input daylight_sensor
     from: "off"
     to: "on"
@@ -56,15 +48,15 @@ trigger:
       minutes: 1
     alias: Daylight detected for 1 minute
 
+  - platform: state
+    # For targets, you must use 'target:' instead of 'entity_id:'
+    target: !input lights
+    to: "on"
+    for:
+      seconds: 30
+    alias: Light(s) on for 30 seconds
+
 condition:
-  - condition: state
-    entity_id: input_boolean.holiday_mode
-    state: "off"
-
-  - condition: state
-    entity_id: input_boolean.night_mode
-    state: "off"
-
   - condition: template
     value_template: >
       {{ expand(selected_lights.entity_id)
