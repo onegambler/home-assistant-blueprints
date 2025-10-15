@@ -1,5 +1,5 @@
 blueprint:
-  name: "Open shutters if daylight"
+  name: Open shutters if daylight
   description: >
     Automatically opens shutters when daylight is detected or when lights have
     been on for more than 30 seconds, provided holiday and night modes are off.
@@ -39,41 +39,54 @@ blueprint:
 
 variables:
   selected_lights: !input lights
-  
+
 trigger:
   - platform: state
     entity_id: !input lights
     to: "on"
-    for: "00:00:30"
-    alias: "Light(s) on for 30 seconds"
+    for:
+      seconds: 30
+    alias: Light(s) on for 30 seconds
+
   - platform: state
     entity_id: !input daylight_sensor
     from: "off"
     to: "on"
-    for: "00:01:00"
-    alias: "Daylight detected for 1 minute"
+    for:
+      minutes: 1
+    alias: Daylight detected for 1 minute
 
 condition:
   - condition: state
     entity_id: input_boolean.holiday_mode
     state: "off"
+
   - condition: state
     entity_id: input_boolean.night_mode
     state: "off"
+
   - condition: template
-    value_template: "{{ expand(selected_lights.entity_id) | selectattr('state', '==', 'on') | list | count > 0 }}"
-    alias: "At least one light on"
+    value_template: >
+      {{ expand(selected_lights.entity_id)
+         | selectattr('state', '==', 'on')
+         | list
+         | count > 0 }}
+    alias: At least one light on
+
   - condition: and
     conditions: !input extra_conditions
-    alias: "User-defined extra conditions"
+    alias: User-defined extra conditions
 
 action:
-  - alias: "Open shutters"
-    action: cover.open_cover
+  - alias: Open shutters
+    service: cover.open_cover
     target: !input shutters
-  - delay: "00:00:10"
-  - alias: "Turn off triggering lights"
-    action: light.turn_off
+
+  - delay:
+      seconds: 10
+
+  - alias: Turn off triggering lights
+    service: light.turn_off
     target: !input lights
 
 mode: single
