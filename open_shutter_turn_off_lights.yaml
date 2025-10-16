@@ -39,11 +39,6 @@ blueprint:
       selector:
         condition: {}
 
-variables:
-  light_entities: >
-    {{ expand(!input lights) | map(attribute='entity_id') | list }}
-  daylight_sensor: !input daylight_sensor
-
 trigger:
   - platform: state
     entity_id: !input daylight_sensor
