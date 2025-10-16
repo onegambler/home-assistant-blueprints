@@ -4,6 +4,7 @@ blueprint:
     Automatically opens shutters when daylight is detected or when lights have
     been on for more than 30 seconds. Supports extra user-defined conditions.
   domain: automation
+
   input:
     lights:
       name: Lights
@@ -14,6 +15,7 @@ blueprint:
             domain:
               - light
               - switch
+
     shutters:
       name: Shutters
       description: Shutters to open when conditions are met.
@@ -21,23 +23,26 @@ blueprint:
         target:
           entity:
             domain: cover
+
     daylight_sensor:
       name: Daylight sensor
       description: Binary sensor indicating daylight.
       selector:
         entity:
           domain: binary_sensor
+
     extra_conditions:
       name: Extra conditions (optional)
       description: >
         Add additional conditions that must be true for the shutters to open.
-        For example, presence, weather, or temperature checks.
       default: []
       selector:
         condition: {}
 
 variables:
-  selected_lights: !input lights
+  light_entities: >
+    {{ expand(!input lights) | map(attribute='entity_id') | list }}
+  daylight_sensor: !input daylight_sensor
 
 trigger:
   - platform: state
@@ -46,38 +51,38 @@ trigger:
     to: "on"
     for:
       minutes: 1
-    alias: Daylight detected for 1 minute
+    alias: "Daylight detected for 1 minute"
 
   - platform: state
-    # For targets, you must use 'target:' instead of 'entity_id:'
-    target: !input lights
+    entity_id: >
+      {{ expand(!input lights) | map(attribute='entity_id') | join(', ') }}
     to: "on"
     for:
       seconds: 30
-    alias: Light(s) on for 30 seconds
+    alias: "Light(s) on for 30 seconds"
 
 condition:
   - condition: template
     value_template: >
-      {{ expand(selected_lights.entity_id)
+      {{ expand(!input lights)
          | selectattr('state', '==', 'on')
          | list
          | count > 0 }}
-    alias: At least one light on
+    alias: "At least one light on"
 
   - condition: and
     conditions: !input extra_conditions
-    alias: User-defined extra conditions
+    alias: "User-defined extra conditions"
 
 action:
-  - alias: Open shutters
+  - alias: "Open shutters"
     service: cover.open_cover
     target: !input shutters
 
   - delay:
       seconds: 10
 
-  - alias: Turn off triggering lights
+  - alias: "Turn off triggering lights"
     service: light.turn_off
     target: !input lights
 
