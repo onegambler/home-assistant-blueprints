@@ -39,6 +39,10 @@ blueprint:
       selector:
         condition: {}
 
+variables:
+  selected_lights: !input lights
+  daylight_sensor_entity: !input daylight_sensor
+
 trigger:
   - platform: state
     entity_id: !input daylight_sensor
@@ -49,8 +53,7 @@ trigger:
     alias: "Daylight detected for 1 minute"
 
   - platform: state
-    entity_id: >
-      {{ expand(!input lights) | map(attribute='entity_id') | join(', ') }}
+    entity_id: !input lights
     to: "on"
     for:
       seconds: 30
@@ -59,7 +62,7 @@ trigger:
 condition:
   - condition: template
     value_template: >
-      {{ expand(!input lights)
+      {{ expand(selected_lights.entity_id)
          | selectattr('state', '==', 'on')
          | list
          | count > 0 }}
