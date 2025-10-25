@@ -7,7 +7,7 @@ blueprint:
   domain: automation
 
   input:
-    motion_sensor:
+    motion_sensors:
       name: Motion Sensor(s)
       selector:
         entity:
@@ -30,13 +30,6 @@ blueprint:
           max: 600
           unit_of_measurement: seconds
           mode: slider
-
-    night_mode:
-      name: Night Mode Boolean (optional)
-      default: input_boolean.night_mode
-      selector:
-        entity:
-          domain: input_boolean
 
     daylight_sensor:
       name: Daylight Sensor (optional)
@@ -103,16 +96,18 @@ trigger:
       minutes: !input light_on_timeout
 
 variables:
+
   daylight_sensor: !input daylight_sensor
   daylight_block_enabled: !input daylight_block_enabled
-  motion_sensors: !input motion_sensor
+  motion_sensors: !input motion_sensors
+  target_lights: !input target_lights
 
 action:
   - choose:
       # --- Turn lights on when motion is detected ---
       - conditions:
           - condition: state
-            entity_id: !input motion_sensor
+            entity_id: !input motion_sensors
             state: "on"
           - condition: or
             conditions:
@@ -121,29 +116,15 @@ action:
               - condition: template
                 value_template: "{{ not daylight_block_enabled }}"
               - condition: template
-                value_template: >
-                  {{ daylight_sensor and states(daylight_sensor) in ['off','unknown','unavailable'] }}
+                value_template: "{{ daylight_sensor and states(daylight_sensor) in ['off','unknown','unavailable'] }}"
         sequence:
-          - choose:
-              - conditions:
-                  - condition: state
-                    entity_id: !input night_mode
-                    state: "on"
-                sequence:
-                  - service: light.turn_on
-                    data:
-                      brightness: !input brightness_night
-                    target: !input target_lights
-            default:
               - service: light.turn_on
-                data:
-                  brightness: !input brightness_day
                 target: !input target_lights
 
       # --- Turn lights off after no motion ---
       - conditions:
           - condition: state
-            entity_id: !input motion_sensor
+            entity_id: !input motion_sensors
             state: "off"
         sequence:
           - service: light.turn_off
