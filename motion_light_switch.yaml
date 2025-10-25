@@ -10,6 +10,7 @@ blueprint:
           filter:
             device_class: occupancy
             domain: binary_sensor
+          multiple: true
     light_target:
       name: Light
       selector:
