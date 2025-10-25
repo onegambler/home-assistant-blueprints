@@ -1,8 +1,9 @@
 blueprint:
-  name: Motion Light Switch
+  name: Motion Light Switch (with daylight & self-healing timeout)
   description: |
     Turns lights on when motion is detected and off when no motion after delay.
-    Supports multiple sensors and lights, optional night mode, and brightness control.
+    Adds optional daylight sensor (skip lighting if bright) and a self-healing
+    timeout that turns lights off if they remain on for too long with no motion.
   domain: automation
   input:
     motion_sensor:
@@ -33,6 +34,20 @@ blueprint:
         entity:
           domain: input_boolean
           multiple: false
+    daylight_sensor:
+      name: Daylight Sensor (optional)
+      description: Prevents lights from turning on if daylight is detected (state == 'on')
+      default: ""
+      selector:
+        entity:
+          domain: binary_sensor
+          multiple: false
+          optional: true
+    daylight_block_enabled:
+      name: Skip light-on if daylight is active
+      default: true
+      selector:
+        boolean: {}
     brightness_day:
       name: Brightness when not in night mode
       default: 255
@@ -47,8 +62,26 @@ blueprint:
         number:
           min: 1
           max: 255
+    light_on_timeout:
+      name: Light-on Timeout (minutes)
+      description: Maximum time a light can stay on before it’s re-evaluated for shutdown.
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: minutes
+          mode: slider
+
+mode: restart
+
+variables:
+  daylight_sensor: !input daylight_sensor
+  daylight_block_enabled: !input daylight_block_enabled
+  no_motion_wait: !input no_motion_wait
 
 trigger:
+  # Motion ON/OFF triggers
   - platform: state
     entity_id: !input motion_sensor
     to: 'on'
@@ -58,14 +91,29 @@ trigger:
     for:
       seconds: !input no_motion_wait
 
-mode: restart
+  # Self-healing timeout trigger
+  - platform: state
+    entity_id: !input target_lights
+    to: 'on'
+    for:
+      minutes: !input light_on_timeout
 
 action:
   - choose:
+      # --- Motion detected ---
       - conditions:
           - condition: state
             entity_id: !input motion_sensor
             state: 'on'
+          - condition: or
+            conditions:
+              - condition: template
+                value_template: "{{ not daylight_sensor }}"
+              - condition: template
+                value_template: "{{ not daylight_block_enabled }}"
+              - condition: template
+                value_template: >
+                  {{ daylight_sensor and states(daylight_sensor) in ['off', 'unknown', 'unavailable'] }}
         sequence:
           - choose:
               - conditions:
@@ -86,10 +134,25 @@ action:
                     data:
                       brightness: !input brightness_day
                     target: !input target_lights
+
+      # --- Motion cleared ---
       - conditions:
           - condition: state
             entity_id: !input motion_sensor
             state: 'off'
+        sequence:
+          - service: light.turn_off
+            target: !input target_lights
+
+      # --- Light-on timeout reached ---
+      - conditions:
+          - condition: state
+            entity_id: !input target_lights
+            state: 'on'
+          - condition: template
+            value_template: >
+              {% set motion_states = expand(!input motion_sensor) | map(attribute='state') | list %}
+              {{ 'on' not in motion_states }}
         sequence:
           - service: light.turn_off
             target: !input target_lights
