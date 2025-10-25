@@ -40,7 +40,7 @@ triggers:
     to: "on"
   # Self-healing timeout trigger
   - platform: state
-    entity_id: !input light_target
+    target: !input light_target
     to: 'on'
     for:
 #     minutes: !input light_on_timeout
