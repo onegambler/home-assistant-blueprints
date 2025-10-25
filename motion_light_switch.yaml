@@ -12,10 +12,11 @@ blueprint:
             domain: binary_sensor
           multiple: true
     light_target:
-      name: Light(s)
+      name: Light
       selector:
         target:
-          domain: light
+          entity:
+            domain: light
     light_on_timeout:
       name: Light-on Timeout (minutes)
       description: Maximum time a light can stay on before it’s re-evaluated for shutdown.
