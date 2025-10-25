@@ -134,11 +134,11 @@ action:
                     data:
                       brightness: !input brightness_night
                     target: !input target_lights
-              - default:
-                  - service: light.turn_on
-                    data:
-                      brightness: !input brightness_day
-                    target: !input target_lights
+            default:
+              - service: light.turn_on
+                data:
+                  brightness: !input brightness_day
+                target: !input target_lights
 
       # --- Turn lights off after no motion ---
       - conditions:
