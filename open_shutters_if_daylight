@@ -37,7 +37,7 @@ blueprint:
       selector:
         entity:
           domain: input_boolean
-      multiple: true
+          multiple: true
       default: []
 
 trigger:
