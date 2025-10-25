@@ -106,9 +106,6 @@ action:
   - choose:
       # --- Turn lights on when motion is detected ---
       - conditions:
-          - condition: state
-            entity_id: !input motion_sensors
-            state: "on"
           - condition: or
             conditions:
               - condition: template
@@ -121,11 +118,12 @@ action:
               - service: light.turn_on
                 target: !input target_lights
 
-      # --- Turn lights off after no motion ---
+     # --- Timeout: lights on too long but no motion ---
       - conditions:
-          - condition: state
-            entity_id: !input motion_sensors
-            state: "off"
+          - condition: template
+            value_template: >
+              {% set active = expand(motion_sensors) | selectattr('state','eq','on') | list %}
+              {{ active | count == 0 }}
         sequence:
           - service: light.turn_off
             target: !input target_lights
