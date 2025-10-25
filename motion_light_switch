@@ -1,0 +1,95 @@
+blueprint:
+  name: Motion Light Switch
+  description: |
+    Turns lights on when motion is detected and off when no motion after delay.
+    Supports multiple sensors and lights, optional night mode, and brightness control.
+  domain: automation
+  input:
+    motion_sensor:
+      name: Motion Sensor(s)
+      selector:
+        entity:
+          domain: binary_sensor
+          multiple: true
+    target_lights:
+      name: Lights to Control
+      selector:
+        target:
+          entity:
+            domain: light
+    no_motion_wait:
+      name: Delay before turning off (seconds)
+      default: 60
+      selector:
+        number:
+          min: 10
+          max: 600
+          unit_of_measurement: seconds
+          mode: slider
+    night_mode:
+      name: Night Mode Boolean (optional)
+      default: input_boolean.night_mode
+      selector:
+        entity:
+          domain: input_boolean
+          multiple: false
+    brightness_day:
+      name: Brightness when not in night mode
+      default: 255
+      selector:
+        number:
+          min: 1
+          max: 255
+    brightness_night:
+      name: Brightness when in night mode
+      default: 60
+      selector:
+        number:
+          min: 1
+          max: 255
+
+trigger:
+  - platform: state
+    entity_id: !input motion_sensor
+    to: 'on'
+  - platform: state
+    entity_id: !input motion_sensor
+    to: 'off'
+    for:
+      seconds: !input no_motion_wait
+
+mode: restart
+
+action:
+  - choose:
+      - conditions:
+          - condition: state
+            entity_id: !input motion_sensor
+            state: 'on'
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: state
+                    entity_id: !input night_mode
+                    state: 'on'
+                sequence:
+                  - service: light.turn_on
+                    data:
+                      brightness: !input brightness_night
+                    target: !input target_lights
+              - conditions:
+                  - condition: state
+                    entity_id: !input night_mode
+                    state: 'off'
+                sequence:
+                  - service: light.turn_on
+                    data:
+                      brightness: !input brightness_day
+                    target: !input target_lights
+      - conditions:
+          - condition: state
+            entity_id: !input motion_sensor
+            state: 'off'
+        sequence:
+          - service: light.turn_off
+            target: !input target_lights
