@@ -129,16 +129,3 @@ action:
         sequence:
           - service: light.turn_off
             target: !input target_lights
-
-      # --- Timeout: lights on too long but no motion ---
-      - conditions:
-          - condition: state
-            entity_id: !input target_lights
-            state: "on"
-          - condition: template
-            value_template: >
-              {% set active = expand(motion_sensors) | selectattr('state','eq','on') | list %}
-              {{ active | count == 0 }}
-        sequence:
-          - service: light.turn_off
-            target: !input target_lights
