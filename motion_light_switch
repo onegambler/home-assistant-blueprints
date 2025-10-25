@@ -1,4 +1,4 @@
-blvueprint:
+blueprint:
   name: Motion Light Switch (daylight + timeout safe)
   description: >
     Turns lights on when motion is detected and off when no motion after delay.
