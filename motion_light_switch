@@ -1,9 +1,9 @@
 blueprint:
-  name: Motion Light Switch (with daylight & self-healing timeout)
-  description: |
+  name: Motion Light Switch (daylight + timeout safe)
+  description: >
     Turns lights on when motion is detected and off when no motion after delay.
-    Adds optional daylight sensor (skip lighting if bright) and a self-healing
-    timeout that turns lights off if they remain on for too long with no motion.
+    Adds optional daylight sensor (skip if daylight) and a safety timeout that
+    turns lights off if they remain on too long without motion.
   domain: automation
 
   input:
@@ -13,12 +13,14 @@ blueprint:
         entity:
           domain: binary_sensor
           multiple: true
+
     target_lights:
       name: Lights to Control
       selector:
         target:
           entity:
             domain: light
+
     no_motion_wait:
       name: Delay before turning off (seconds)
       default: 60
@@ -28,13 +30,14 @@ blueprint:
           max: 600
           unit_of_measurement: seconds
           mode: slider
+
     night_mode:
       name: Night Mode Boolean (optional)
       default: input_boolean.night_mode
       selector:
         entity:
           domain: input_boolean
-          multiple: false
+
     daylight_sensor:
       name: Daylight Sensor (optional)
       description: Prevents lights from turning on if daylight is detected (state == 'on')
@@ -43,28 +46,33 @@ blueprint:
         entity:
           domain: binary_sensor
           multiple: false
+
     daylight_block_enabled:
-      name: Skip light-on if daylight is active
+      name: Skip turning on lights if daylight is active
       default: true
       selector:
         boolean: {}
+
     brightness_day:
-      name: Brightness when not in night mode
+      name: Brightness (Day)
       default: 255
       selector:
         number:
           min: 1
           max: 255
+
     brightness_night:
-      name: Brightness when in night mode
+      name: Brightness (Night)
       default: 60
       selector:
         number:
           min: 1
           max: 255
+
     light_on_timeout:
-      name: Light-on Timeout (minutes)
-      description: Maximum time a light can stay on before it’s re-evaluated for shutdown.
+      name: Max Light On Time (minutes)
+      description: >
+        Ensures the lights are switched off if left on too long and no motion is active.
       default: 5
       selector:
         number:
@@ -75,98 +83,81 @@ blueprint:
 
 mode: restart
 
-variables:
-  daylight_sensor_var: !input daylight_sensor
-  daylight_block_enabled_var: !input daylight_block_enabled
-  motion_sensors_var: !input motion_sensor
-  target_lights_var: !input target_lights
-  light_on_timeout_var: !input light_on_timeout
-
 trigger:
-  # Motion ON/OFF triggers
+  # Normal motion triggers
   - platform: state
     entity_id: !input motion_sensor
-    to: 'on'
+    to: "on"
+
   - platform: state
     entity_id: !input motion_sensor
-    to: 'off'
+    to: "off"
     for:
       seconds: !input no_motion_wait
 
-  # Self-healing timeout trigger
-  - platform: time_pattern
-    minutes: "/1"  # check every minute
+  # Timeout: light has been on for too long
+  - platform: state
+    entity_id: !input target_lights
+    to: "on"
+    for:
+      minutes: !input light_on_timeout
 
-condition:
-  - condition: template
-    value_template: "{{ true }}"  # always allow, we evaluate logic in action
+variables:
+  daylight_sensor: !input daylight_sensor
+  daylight_block_enabled: !input daylight_block_enabled
+  motion_sensors: !input motion_sensor
 
 action:
-  - variables:
-      lights_on_too_long: >-
-        {% set threshold = light_on_timeout_var | int * 60 %}
-        {% set now_ts = as_timestamp(now()) %}
-        {% set lights = expand(target_lights_var.entity_id | default([])) %}
-        {% for light in lights %}
-          {% if light.state == 'on' and (now_ts - as_timestamp(light.last_changed)) > threshold %}
-            {{ true }}
-          {% endif %}
-        {% endfor %}
-        false
-
   - choose:
-      # --- Motion detected ---
+      # --- Turn lights on when motion is detected ---
       - conditions:
           - condition: state
             entity_id: !input motion_sensor
-            state: 'on'
+            state: "on"
           - condition: or
             conditions:
               - condition: template
-                value_template: "{{ not daylight_sensor_var }}"
+                value_template: "{{ not daylight_sensor }}"
               - condition: template
-                value_template: "{{ not daylight_block_enabled_var }}"
+                value_template: "{{ not daylight_block_enabled }}"
               - condition: template
                 value_template: >
-                  {{ daylight_sensor_var and states(daylight_sensor_var) in ['off','unknown','unavailable'] }}
+                  {{ daylight_sensor and states(daylight_sensor) in ['off','unknown','unavailable'] }}
         sequence:
           - choose:
               - conditions:
                   - condition: state
                     entity_id: !input night_mode
-                    state: 'on'
+                    state: "on"
                 sequence:
                   - service: light.turn_on
                     data:
                       brightness: !input brightness_night
                     target: !input target_lights
-              - conditions:
-                  - condition: state
-                    entity_id: !input night_mode
-                    state: 'off'
-                sequence:
+              - default:
                   - service: light.turn_on
                     data:
                       brightness: !input brightness_day
                     target: !input target_lights
 
-      # --- Motion cleared ---
+      # --- Turn lights off after no motion ---
       - conditions:
           - condition: state
             entity_id: !input motion_sensor
-            state: 'off'
+            state: "off"
         sequence:
           - service: light.turn_off
             target: !input target_lights
 
-      # --- Timeout recheck ---
+      # --- Timeout: lights on too long but no motion ---
       - conditions:
-          - condition: template
-            value_template: "{{ lights_on_too_long | trim == 'true' }}"
+          - condition: state
+            entity_id: !input target_lights
+            state: "on"
           - condition: template
             value_template: >
-              {% set motions = expand(motion_sensors_var | default([])) | selectattr('state','eq','on') | list %}
-              {{ motions | count == 0 }}
+              {% set active = expand(motion_sensors) | selectattr('state','eq','on') | list %}
+              {{ active | count == 0 }}
         sequence:
           - service: light.turn_off
             target: !input target_lights
