@@ -1,4 +1,4 @@
-blueprint:
+blvueprint:
   name: Motion Light Switch (daylight + timeout safe)
   description: >
     Turns lights on when motion is detected and off when no motion after delay.
@@ -79,11 +79,11 @@ mode: restart
 trigger:
   # Normal motion triggers
   - platform: state
-    entity_id: !input motion_sensor
+    entity_id: !input motion_sensors
     to: "on"
 
   - platform: state
-    entity_id: !input motion_sensor
+    entity_id: !input motion_sensors
     to: "off"
     for:
       seconds: !input no_motion_wait
