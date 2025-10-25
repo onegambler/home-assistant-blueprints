@@ -37,15 +37,14 @@ blueprint:
     daylight_sensor:
       name: Daylight Sensor (optional)
       description: Prevents lights from turning on if daylight is detected (state == 'on')
-      default: ""
+      default: binary_sensor.daylight
       selector:
         entity:
           domain: binary_sensor
           multiple: false
-          optional: true
     daylight_block_enabled:
       name: Skip light-on if daylight is active
-      default: true
+      default: false
       selector:
         boolean: {}
     brightness_day:
