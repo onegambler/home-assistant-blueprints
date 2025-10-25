@@ -1,0 +1,95 @@
+blueprint:
+  name: Open shutters if daylight or if specific lights are on
+  description: Open one or more covers when daylight is detected or when specified lights are on for a period.
+  domain: automation
+  input:
+    target_shutters:
+      name: Shutters (covers)
+      selector:
+        target:
+          entity:
+            domain: cover
+    lights_trigger:
+      name: Lights that can trigger
+      selector:
+        target:
+          entity:
+            domain: light
+      default: []
+    daylight_sensor:
+      name: Daylight sensor
+      selector:
+        entity:
+          domain: binary_sensor
+      default: binary_sensor.daylight
+    daylight_required:
+      name: Require daylight to be `on` to perform action`
+      selector:
+        boolean: {}
+      default: true
+    light_on_for:
+      name: Lights must be on for
+      selector:
+        duration: {}
+      default: 00:00:30
+    allowed_modes:
+      name: Modes that allow this automation
+      selector:
+        entity:
+          domain: input_boolean
+      multiple: true
+      default: []
+
+trigger:
+  - platform: state
+    id: light_on
+    entity_id: !input lights_trigger
+    to: 'on'
+    for: !input light_on_for
+  - platform: state
+    id: daylight
+    entity_id: !input daylight_sensor
+    from: 'off'
+    to: 'on'
+    for: 00:01:00
+
+condition:
+  - condition: template
+    value_template: >-
+      {% if not (states('input_boolean.holiday_mode') == 'off') %}
+        false
+      {% else %}
+        true
+      {% endif %}
+
+  - condition: template
+    value_template: >-
+      {% if not states('input_boolean.night_mode') == 'off' %}
+        false
+      {% else %}
+        true
+      {% endif %}
+
+  - condition: or
+    conditions:
+      - condition: trigger
+        id: light_on
+      - condition: trigger
+        id: daylight
+
+  - condition: template
+    value_template: >-
+      {% if !input daylight_required %} true {% else %} is_state(!input daylight_sensor, 'on') {% endif %}
+
+action:
+  - service: retry.action
+    target: !input target_shutters
+    data:
+      action: cover.open_cover
+      retries: 3
+      expected_state:
+        - open
+        - opening
+      state_grace: 60
+
+mode: restart
