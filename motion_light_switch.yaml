@@ -11,8 +11,9 @@ blueprint:
       name: Motion Sensor(s)
       selector:
         entity:
-          domain: binary_sensor
-          multiple: true
+          filter:
+            device_class: motion
+            domain: binary_sensor
 
     target_lights:
       name: Lights to Control
@@ -76,20 +77,20 @@ blueprint:
 
 mode: restart
 
-trigger:
+triggers:
   # Normal motion triggers
-  - platform: state
+  - trigger: state
     entity_id: !input motion_sensors
     to: "on"
 
-  - platform: state
+  - trigger: state
     entity_id: !input motion_sensors
     to: "off"
     for:
       seconds: !input no_motion_wait
 
   # Timeout: light has been on for too long
-  - platform: state
+  - trigger: state
     entity_id: !input target_lights
     to: "on"
     for:
