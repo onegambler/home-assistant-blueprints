@@ -5,6 +5,7 @@ blueprint:
     Adds optional daylight sensor (skip lighting if bright) and a self-healing
     timeout that turns lights off if they remain on for too long with no motion.
   domain: automation
+
   input:
     motion_sensor:
       name: Motion Sensor(s)
@@ -75,10 +76,11 @@ blueprint:
 mode: restart
 
 variables:
-  daylight_sensor: !input daylight_sensor
-  daylight_block_enabled: !input daylight_block_enabled
-  motion_sensors: !input motion_sensor
-  target_lights: !input target_lights
+  daylight_sensor_var: !input daylight_sensor
+  daylight_block_enabled_var: !input daylight_block_enabled
+  motion_sensors_var: !input motion_sensor
+  target_lights_var: !input target_lights
+  light_on_timeout_var: !input light_on_timeout
 
 trigger:
   # Motion ON/OFF triggers
@@ -92,18 +94,26 @@ trigger:
       seconds: !input no_motion_wait
 
   # Self-healing timeout trigger
-  - platform: template
-    value_template: >
-      {% set lights = expand(target_lights.entity_id | default([])) %}
-      {% for light in lights %}
-        {% if states(light.entity_id) == 'on'
-          and (as_timestamp(now()) - as_timestamp(light.last_changed)) > (!input light_on_timeout * 60) %}
-          {{ true }}
-        {% endif %}
-      {% endfor %}
-      false
+  - platform: time_pattern
+    minutes: "/1"  # check every minute
+
+condition:
+  - condition: template
+    value_template: "{{ true }}"  # always allow, we evaluate logic in action
 
 action:
+  - variables:
+      lights_on_too_long: >-
+        {% set threshold = light_on_timeout_var | int * 60 %}
+        {% set now_ts = as_timestamp(now()) %}
+        {% set lights = expand(target_lights_var.entity_id | default([])) %}
+        {% for light in lights %}
+          {% if light.state == 'on' and (now_ts - as_timestamp(light.last_changed)) > threshold %}
+            {{ true }}
+          {% endif %}
+        {% endfor %}
+        false
+
   - choose:
       # --- Motion detected ---
       - conditions:
@@ -113,12 +123,12 @@ action:
           - condition: or
             conditions:
               - condition: template
-                value_template: "{{ not daylight_sensor }}"
+                value_template: "{{ not daylight_sensor_var }}"
               - condition: template
-                value_template: "{{ not daylight_block_enabled }}"
+                value_template: "{{ not daylight_block_enabled_var }}"
               - condition: template
                 value_template: >
-                  {{ daylight_sensor and states(daylight_sensor) in ['off', 'unknown', 'unavailable'] }}
+                  {{ daylight_sensor_var and states(daylight_sensor_var) in ['off','unknown','unavailable'] }}
         sequence:
           - choose:
               - conditions:
@@ -149,15 +159,13 @@ action:
           - service: light.turn_off
             target: !input target_lights
 
-      # --- Light-on timeout reached ---
+      # --- Timeout recheck ---
       - conditions:
           - condition: template
-            value_template: >
-              {% set lights = expand(target_lights.entity_id | default([])) %}
-              {{ lights | selectattr('state','eq','on') | list | count > 0 }}
+            value_template: "{{ lights_on_too_long | trim == 'true' }}"
           - condition: template
             value_template: >
-              {% set motions = expand(motion_sensors | default([])) | selectattr('state','eq','on') | list %}
+              {% set motions = expand(motion_sensors_var | default([])) | selectattr('state','eq','on') | list %}
               {{ motions | count == 0 }}
         sequence:
           - service: light.turn_off
