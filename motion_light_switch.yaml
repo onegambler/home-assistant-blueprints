@@ -1,130 +1,50 @@
 blueprint:
-  name: Motion Light Switch (daylight + timeout safe)
-  description: >
-    Turns lights on when motion is detected and off when no motion after delay.
-    Adds optional daylight sensor (skip if daylight) and a safety timeout that
-    turns lights off if they remain on too long without motion.
+  name: Motion-activated Light
+  description: Turn on a light when motion is detected.
   domain: automation
-
   input:
-    motion_sensors:
-      name: Motion Sensor(s)
+    motion_entity:
+      name: Motion Sensor
       selector:
         entity:
           filter:
             device_class: motion
             domain: binary_sensor
-
-    target_lights:
-      name: Lights to Control
+    light_target:
+      name: Light
       selector:
         target:
           entity:
             domain: light
-
     no_motion_wait:
-      name: Delay before turning off (seconds)
-      default: 60
+      name: Wait time
+      description: Time to leave the light on after last motion is detected.
+      default: 120
       selector:
         number:
-          min: 10
-          max: 600
+          min: 0
+          max: 3600
           unit_of_measurement: seconds
-          mode: slider
 
-    daylight_sensor:
-      name: Daylight Sensor (optional)
-      description: Prevents lights from turning on if daylight is detected (state == 'on')
-      default: binary_sensor.daylight
-      selector:
-        entity:
-          domain: binary_sensor
-          multiple: false
-
-    daylight_block_enabled:
-      name: Skip turning on lights if daylight is active
-      default: true
-      selector:
-        boolean: {}
-
-    brightness_day:
-      name: Brightness (Day)
-      default: 255
-      selector:
-        number:
-          min: 1
-          max: 255
-
-    brightness_night:
-      name: Brightness (Night)
-      default: 60
-      selector:
-        number:
-          min: 1
-          max: 255
-
-    light_on_timeout:
-      name: Max Light On Time (minutes)
-      description: >
-        Ensures the lights are switched off if left on too long and no motion is active.
-      default: 5
-      selector:
-        number:
-          min: 1
-          max: 60
-          unit_of_measurement: minutes
-          mode: slider
-
+# If motion is detected within the delay,
+# we restart the script.
 mode: restart
+max_exceeded: silent
 
 triggers:
-  # Normal motion triggers
   - trigger: state
-    entity_id: !input motion_sensors
+    entity_id: !input motion_entity
+    from: "off"
     to: "on"
 
-  - trigger: state
-    entity_id: !input motion_sensors
-    to: "off"
-    for:
-      seconds: !input no_motion_wait
-
-  # Timeout: light has been on for too long
-  - trigger: state
-    entity_id: !input target_lights
-    to: "on"
-    for:
-      minutes: !input light_on_timeout
-
-variables:
-
-  daylight_sensor: !input daylight_sensor
-  daylight_block_enabled: !input daylight_block_enabled
-  motion_sensors: !input motion_sensors
-  target_lights: !input target_lights
-
-action:
-  - choose:
-      # --- Turn lights on when motion is detected ---
-      - conditions:
-          - condition: or
-            conditions:
-              - condition: template
-                value_template: "{{ not daylight_sensor }}"
-              - condition: template
-                value_template: "{{ not daylight_block_enabled }}"
-              - condition: template
-                value_template: "{{ daylight_sensor and states(daylight_sensor) in ['off','unknown','unavailable'] }}"
-        sequence:
-              - service: light.turn_on
-                target: !input target_lights
-
-     # --- Timeout: lights on too long but no motion ---
-      - conditions:
-          - condition: template
-            value_template: >
-              {% set active = expand(motion_sensors) | selectattr('state','eq','on') | list %}
-              {{ active | count == 0 }}
-        sequence:
-          - service: light.turn_off
-            target: !input target_lights
+actions:
+  - action: light.turn_on
+    target: !input light_target
+  - wait_for_trigger:
+      - trigger: state
+        entity_id: !input motion_entity
+        from: "on"
+        to: "off"
+  - delay: !input no_motion_wait
+  - action: light.turn_off
+    target: !input light_target
